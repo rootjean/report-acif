@@ -1,0 +1,12 @@
+.grafico-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 1.2rem;
+  box-shadow: var(--shadow);
+}
+.grafico-titulo {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--negro);
+  margin-bottom: 1rem;
+}

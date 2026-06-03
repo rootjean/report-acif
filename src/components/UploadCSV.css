@@ -1,0 +1,49 @@
+.upload-csv { display: flex; flex-direction: column; gap: 10px; }
+
+.upload-periodo-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.upload-periodo-row label { font-weight: 600; font-size: 0.875rem; }
+.input-month {
+  border: 1px solid var(--gris-borde);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.875rem;
+  outline: none;
+}
+.input-month:focus { border-color: var(--naranja); }
+.upload-hint { color: var(--gris-texto); font-size: 0.8rem; }
+
+.drop-area {
+  border: 1.5px dashed #D1D5DB;
+  border-radius: 10px;
+  padding: 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.drop-area:hover, .drop-area.dragging { border-color: var(--naranja); background: var(--naranja-light); }
+.drop-area.busy { cursor: default; opacity: 0.7; }
+
+.drop-main { font-weight: 500; font-size: 0.9rem; color: var(--negro); }
+.drop-sub { font-size: 0.8rem; color: var(--gris-texto); }
+
+.msg-error { color: #DC2626; font-size: 0.85rem; background: #FEF2F2; padding: 8px 12px; border-radius: 6px; }
+.msg-ok { color: #16A34A; font-size: 0.85rem; background: #F0FDF4; padding: 8px 12px; border-radius: 6px; }
+
+.spin {
+  width: 28px; height: 28px;
+  border: 3px solid #E5E7EB;
+  border-top-color: var(--naranja);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }

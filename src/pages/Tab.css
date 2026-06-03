@@ -1,0 +1,95 @@
+.tab-page { display: flex; flex-direction: column; gap: 1.25rem; }
+
+.tab-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.tab-title { font-size: 1.3rem; font-weight: 700; color: var(--negro); }
+.tab-sub { font-size: 0.82rem; color: var(--gris-texto); margin-top: 2px; }
+
+.tab-actions { display: flex; gap: 6px; }
+.btn-toggle {
+  background: #fff;
+  border: 1px solid var(--gris-borde);
+  padding: 7px 14px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--gris-texto);
+  transition: all 0.15s;
+}
+.btn-toggle:hover { border-color: var(--naranja); color: var(--naranja); }
+.btn-toggle.active { background: var(--naranja); border-color: var(--naranja); color: #fff; }
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+}
+
+.graficos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1rem;
+}
+
+.section-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 1.2rem;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.section-title { font-size: 0.875rem; font-weight: 600; color: var(--negro); }
+
+.loading-msg { color: var(--gris-texto); padding: 2rem; text-align: center; }
+
+.empty-state {
+  background: #fff;
+  border-radius: 10px;
+  padding: 3rem 2rem;
+  text-align: center;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  color: var(--gris-texto);
+}
+.btn-primary {
+  background: var(--naranja);
+  color: #fff;
+  border: none;
+  padding: 9px 20px;
+  border-radius: 7px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+.btn-primary:hover { background: var(--naranja-dark); }
+
+/* Resumen tabla */
+.tabla-scroll-simple { overflow-x: auto; }
+.resumen-tabla { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.resumen-tabla th {
+  background: #F9FAFB;
+  padding: 9px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--gris-texto);
+  border-bottom: 1px solid var(--gris-borde);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.resumen-tabla td {
+  padding: 9px 12px;
+  border-bottom: 1px solid #F3F4F6;
+  color: var(--negro);
+}
+.resumen-tabla tbody tr:hover td { background: var(--naranja-light); }
