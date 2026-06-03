@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import { getPeriodos, eliminarPeriodo } from './utils/api';
 import TabResumen from './pages/TabResumen';
+import Asistente from './components/Asistente';
 import TabLeads from './pages/TabLeads';
 import TabOportunidades from './pages/TabOportunidades';
 import TabVentas from './pages/TabVentas';
@@ -124,6 +125,8 @@ export default function App() {
           </div>
         </div>
       )}
+            <Asistente datosContexto={null} />
+
     </div>
   );
 }
