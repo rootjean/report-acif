@@ -54,6 +54,7 @@ export default function TabMarketing({ periodo, periodoLabel, onGuardado }) {
   };
 
   useEffect(() => { cargar(periodo); }, [periodo]);
+    useEffect(() => { setPeriodoInput(periodo || ''); }, [periodo]);
 
   // Cuando cambian las empresas seleccionadas, reconstruir gastos manteniendo valores
   const handleEmpresaToggle = (emp) => {
@@ -151,19 +152,19 @@ export default function TabMarketing({ periodo, periodoLabel, onGuardado }) {
   };
 
   const handleGuardar = async () => {
-    if (!periodo) return alert('Selecciona un período primero');
-    const existing = await getDatos(periodo).catch(() => ({}));
-    await guardarDatos(periodo, {
+    if (!periodoInput) return alert('Selecciona un período primero');
+    const existing = await getDatos(periodoInput).catch(() => ({}));
+    await guardarDatos(periodoInput, {
       ...existing,
       gastosMarketing: gastosSemanales,
       empresasSeleccionadas,
       empresaLotesActiva,
       proyectosExcluidos,
     });
-    onGuardado(periodo);
+    onGuardado(periodoInput);
     setGuardado(true);
     setVista('reporte');
-    cargar(periodo);
+    cargar(periodoInput);
   };
 
   return (
