@@ -38,7 +38,6 @@ app.get('/api/datos/:periodo', (req, res) => {
   }
 });
 
-// POST /api/datos/:periodo — guarda o actualiza datos de un período
 app.post('/api/datos/:periodo', (req, res) => {
   const file = path.join(DATA_DIR, `${req.params.periodo}.json`);
   try {
@@ -78,6 +77,6 @@ app.get('/api/todos', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`\n✅ Backend corriendo en http://localhost:${PORT}`);
-  console.log(`📁 Datos guardados en: ${DATA_DIR}\n`);
+  console.log(`\nBackend corriendo en http://localhost:${PORT}`);
+  console.log(`Datos guardados en: ${DATA_DIR}\n`);
 });

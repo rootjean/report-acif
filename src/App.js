@@ -6,12 +6,14 @@ import Asistente from './components/Asistente';
 import TabLeads from './pages/TabLeads';
 import TabOportunidades from './pages/TabOportunidades';
 import TabVentas from './pages/TabVentas';
+import TabMarketing from './pages/TabMarketing';
 
 const TABS = [
   { id: 'resumen', label: 'Resumen General' },
   { id: 'leads', label: 'Leads' },
   { id: 'oportunidades', label: 'Oportunidades' },
   { id: 'ventas', label: 'Ventas' },
+  { id: 'marketing', label: 'Marketing' },
 ];
 
 export default function App() {
@@ -98,6 +100,7 @@ export default function App() {
         {tab === 'leads' && <TabLeads periodo={periodoActivo} periodoLabel={periodoLabel} onGuardado={onDatosGuardados} />}
         {tab === 'oportunidades' && <TabOportunidades periodo={periodoActivo} periodoLabel={periodoLabel} onGuardado={onDatosGuardados} />}
         {tab === 'ventas' && <TabVentas periodo={periodoActivo} periodoLabel={periodoLabel} onGuardado={onDatosGuardados} />}
+        {tab === 'marketing' && <TabMarketing periodo={periodoActivo} periodoLabel={periodoLabel} onGuardado={onDatosGuardados} />}
       </main>
 
       {/* MODAL GESTIONAR DATOS */}

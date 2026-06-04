@@ -106,7 +106,7 @@ export default function TabLeads({ periodo, periodoLabel, onGuardado }) {
               </ResponsiveContainer>
             </div>
           )}
-
+            
           <div className="section-card">
             <h2 className="section-title">Detalle de Leads</h2>
             <Tabla filas={filas} columnas={filas.length > 0 ? Object.keys(filas[0]) : []} />
