@@ -2048,5 +2048,33 @@
       "CONSTRUCTORA": 10,
       "PROYECTOS": 10
     }
-  ]
+  ],
+  "gastosMarketing": [
+    {
+      "semana": 1,
+      "CAPCIM": 50,
+      "INVERSIONES": 50
+    },
+    {
+      "semana": 2,
+      "CAPCIM": 50,
+      "INVERSIONES": 50
+    },
+    {
+      "semana": 3,
+      "CAPCIM": 5,
+      "INVERSIONES": 5
+    },
+    {
+      "semana": 4,
+      "CAPCIM": 555,
+      "INVERSIONES": 5
+    }
+  ],
+  "empresasSeleccionadas": [
+    "CAPCIM",
+    "INVERSIONES"
+  ],
+  "empresaLotesActiva": "INVERSIONES",
+  "proyectosExcluidos": []
 }

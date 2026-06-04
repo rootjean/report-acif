@@ -1,376 +1,374 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { getDatos, guardarDatos } from '../utils/api';
-import { agrupar, aObjeto, extraerProyecto } from '../utils/csvParser';
+import { extraerProyecto } from '../utils/csvParser';
 import KpiCard from '../components/KpiCard';
-import Grafico from '../components/Grafico';
 import './Tab.css';
 
-const CANALES = ['Facebook', 'Instagram', 'Google', 'Referido', 'Email', 'Orgánico', 'Otro'];
-const COLUMNAS_GASTOS_BASE = ['INVERSIONES', 'CONSTRUCTORA', 'PROYECTOS'];
-const EMPRESAS = ['CAPCIM', 'INVERSIONES', 'CONSTRUCTORA', 'PROYECTOS'];
+const EMPRESA_LOTES = ['INVERSIONES', 'CONSTRUCTORA', 'PROYECTOS'];
+const GASTOS_VACIO = (semanas = 4, empresas = []) =>
+  Array.from({ length: semanas }, (_, i) => ({
+    semana: i + 1,
+    ...Object.fromEntries(empresas.map(e => [e, 0])),
+  }));
+
+const fmt = (n) =>
+  Number(n || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default function TabMarketing({ periodo, periodoLabel, onGuardado }) {
-  const [datos, setDatos] = useState([]);
   const [vista, setVista] = useState('reporte');
   const [loading, setLoading] = useState(false);
   const [leadsData, setLeadsData] = useState([]);
-  const [proyectoEmpresa, setProyectoEmpresa] = useState({});
+  const [guardado, setGuardado] = useState(false);
 
-  const [formData, setFormData] = useState({
-    fecha: '',
-    canal: '',
-    campaña: '',
-    clics: 0,
-    impresiones: 0,
-    costo: 0,
-    leadsGenerados: 0,
-  });
-
-  const [columnasVisibles, setColumnasVisibles] = useState(['INVERSIONES', 'CONSTRUCTORA', 'PROYECTOS']);
-
-  const [gastosSemanales, setGastosSemanales] = useState([
-    { semana: 1, CAPCIM: 0, INVERSIONES: 0, CONSTRUCTORA: 0, PROYECTOS: 0 },
-    { semana: 2, CAPCIM: 0, INVERSIONES: 0, CONSTRUCTORA: 0, PROYECTOS: 0 },
-    { semana: 3, CAPCIM: 0, INVERSIONES: 0, CONSTRUCTORA: 0, PROYECTOS: 0 },
-    { semana: 4, CAPCIM: 0, INVERSIONES: 0, CONSTRUCTORA: 0, PROYECTOS: 0 }
-  ]);
+  // Configuración
+  const [empresaLotesActiva, setEmpresaLotesActiva] = useState('INVERSIONES');
+  const [empresasSeleccionadas, setEmpresasSeleccionadas] = useState(['CAPCIM', 'INVERSIONES']);
+  const [proyectosExcluidos, setProyectosExcluidos] = useState([]);
+  const [gastosSemanales, setGastosSemanales] = useState([]);
 
   const cargar = (p) => {
     if (!p) return;
     setLoading(true);
-    getDatos(p).then(d => { 
-      setDatos(d.marketing || []); 
-      setLeadsData(d.leads || []);
-      let gs = d.gastosSemanales || [];
-      if (gs.length < 4) {
-        for (let i = gs.length + 1; i <= 4; i++) {
-          gs.push({ semana: i, CAPCIM: 0, INVERSIONES: 0, CONSTRUCTORA: 0, PROYECTOS: 0 });
-        }
-      }
-      if (gs.length > 5) gs = gs.slice(0, 5);
-      setGastosSemanales(gs);
-      setProyectoEmpresa(d.proyectoEmpresa || {});
-      setLoading(false); 
-    }).catch(() => { 
-      setDatos([]); 
-      setLeadsData([]);
-      setGastosSemanales([
-        { semana: 1, CAPCIM: 0, INVERSIONES: 0, CONSTRUCTORA: 0, PROYECTOS: 0 },
-        { semana: 2, CAPCIM: 0, INVERSIONES: 0, CONSTRUCTORA: 0, PROYECTOS: 0 },
-        { semana: 3, CAPCIM: 0, INVERSIONES: 0, CONSTRUCTORA: 0, PROYECTOS: 0 },
-        { semana: 4, CAPCIM: 0, INVERSIONES: 0, CONSTRUCTORA: 0, PROYECTOS: 0 }
-      ]);
-      setProyectoEmpresa({});
-      setLoading(false); 
-    });
+    getDatos(p)
+      .then(d => {
+        setLeadsData(d.leads || []);
+        const empSel = d.empresasSeleccionadas || ['CAPCIM', 'INVERSIONES'];
+        setEmpresasSeleccionadas(empSel);
+        setEmpresaLotesActiva(d.empresaLotesActiva || 'INVERSIONES');
+        setProyectosExcluidos(d.proyectosExcluidos || []);
+        const gs = d.gastosMarketing;
+        setGastosSemanales(gs && gs.length ? gs : GASTOS_VACIO(4, empSel));
+        setGuardado(!!gs);
+        setLoading(false);
+      })
+      .catch(() => {
+        setLeadsData([]);
+        setGastosSemanales(GASTOS_VACIO(4, ['CAPCIM', 'INVERSIONES']));
+        setGuardado(false);
+        setLoading(false);
+      });
   };
 
   useEffect(() => { cargar(periodo); }, [periodo]);
 
-  const filas = datos || [];
-
-  const totalClics = filas.reduce((sum, r) => sum + (Number(r.Clics) || 0), 0);
-  const totalImpresiones = filas.reduce((sum, r) => sum + (Number(r.Impresiones) || 0), 0);
-  const totalCosto = filas.reduce((sum, r) => sum + (Number(r.Costo) || 0), 0);
-  const totalLeads = filas.reduce((sum, r) => sum + (Number(r['Leads Generados']) || 0), 0);
-  const cplGlobal = totalLeads > 0 ? (totalCosto / totalLeads).toFixed(2) : 0;
-  const ctrGlobal = totalImpresiones > 0 ? ((totalClics / totalImpresiones) * 100).toFixed(2) : 0;
-
-  const porCanal = aObjeto(agrupar(filas, 'Canal'));
-  const porCampaña = aObjeto(agrupar(filas, 'Campaña'));
-  const costoPorCanal = aObjeto(filas.reduce((acc, r) => {
-    const k = r.Canal || 'Sin canal';
-    acc[k] = (acc[k] || 0) + (Number(r.Costo) || 0);
-    return acc;
-  }, {}));
-  const leadsPorCanal = aObjeto(filas.reduce((acc, r) => {
-    const k = r.Canal || 'Sin canal';
-    acc[k] = (acc[k] || 0) + (Number(r['Leads Generados']) || 0);
-    return acc;
-  }, {}));
-
-  const proyectosUnicos = useMemo(() => {
-    const proyectos = new Set();
-    leadsData.forEach(r => {
-      const raw = r['Proyectos de Interes'] || r['Proyectos de Interés'] || r['Proyecto'] || '';
-      const base = extraerProyecto(raw);
-      if (base && base !== 'Sin proyecto') proyectos.add(base);
+  // Cuando cambian las empresas seleccionadas, reconstruir gastos manteniendo valores
+  const handleEmpresaToggle = (emp) => {
+    setEmpresasSeleccionadas(prev => {
+      const next = prev.includes(emp) ? prev.filter(e => e !== emp) : [...prev, e => e, emp].filter((e, i, a) => a.indexOf(e) === i);
+      // reconstruir filas conservando valores
+      setGastosSemanales(gs =>
+        gs.map(s => ({
+          semana: s.semana,
+          ...Object.fromEntries(next.map(e => [e, s[e] || 0])),
+        }))
+      );
+      return next;
     });
-    return Array.from(proyectos).sort();
+    // si se selecciona una empresa de lotes, activarla
+    if (EMPRESA_LOTES.includes(emp)) setEmpresaLotesActiva(emp);
+  };
+
+  // Proyectos del CSV
+  const todosProyectos = useMemo(() => {
+    const set = new Set();
+    leadsData.forEach(r => {
+      const raw = r['Proyectos de Interes'] || r['Proyectos de Interés'] || '';
+      const base = extraerProyecto(raw);
+      if (base && base !== 'Sin proyecto') set.add(base);
+    });
+    return Array.from(set).sort();
   }, [leadsData]);
+
+  const proyectosCapcim = useMemo(() =>
+    todosProyectos.filter(p => p.toUpperCase().includes('HORIZONTE')),
+    [todosProyectos]);
+
+  const proyectosLotes = useMemo(() =>
+    todosProyectos.filter(p => !p.toUpperCase().includes('HORIZONTE')),
+    [todosProyectos]);
+
+  const proyectosLotesActivos = useMemo(() =>
+    proyectosLotes.filter(p => !proyectosExcluidos.includes(p)),
+    [proyectosLotes, proyectosExcluidos]);
 
   const leadsPorProyecto = useMemo(() => {
     const acc = {};
     leadsData.forEach(r => {
-      const raw = r['Proyectos de Interes'] || r['Proyectos de Interés'] || r['Proyecto'] || '';
+      const raw = r['Proyectos de Interes'] || r['Proyectos de Interés'] || '';
       const base = extraerProyecto(raw);
-      if (base && base !== 'Sin proyecto') {
-        acc[base] = (acc[base] || 0) + 1;
-      }
+      if (base && base !== 'Sin proyecto') acc[base] = (acc[base] || 0) + 1;
     });
     return acc;
   }, [leadsData]);
 
-  const columnasGastos = useMemo(() => ['CAPCIM', ...columnasVisibles], [columnasVisibles]);
-
-  const totalesGastos = useMemo(() => {
-    return columnasGastos.reduce((acc, col) => {
-      acc[col] = gastosSemanales.reduce((sum, s) => sum + (Number(s[col]) || 0), 0);
-      return acc;
-    }, {});
-  }, [gastosSemanales, columnasGastos]);
-
-  const totalGeneralGastos = useMemo(() => {
-    return columnasGastos.reduce((sum, col) => sum + (totalesGastos[col] || 0), 0);
-  }, [totalesGastos, columnasGastos]);
-
-  const cplPorEmpresaProyecto = useMemo(() => {
-    const resultado = {};
-    EMPRESAS.forEach(empresa => {
-      const costoEmpresa = totalesGastos[empresa] || 0;
-      const proyectosEmpresa = proyectosUnicos.filter(p => proyectoEmpresa[p] === empresa);
-      let totalLeadsEmpresa = 0;
-      proyectosEmpresa.forEach(p => {
-        totalLeadsEmpresa += leadsPorProyecto[p] || 0;
-      });
-      proyectosEmpresa.forEach(p => {
-        const leadsProyecto = leadsPorProyecto[p] || 0;
-        if (leadsProyecto > 0 && costoEmpresa > 0) {
-          const cpl = (costoEmpresa * (leadsProyecto / totalLeadsEmpresa)) / leadsProyecto;
-          if (!resultado[empresa]) resultado[empresa] = {};
-          resultado[empresa][p] = { cpl: cpl.toFixed(2), leads: leadsProyecto, costoAsignado: (costoEmpresa * (leadsProyecto / totalLeadsEmpresa)).toFixed(2) };
-        } else if (leadsProyecto > 0) {
-          if (!resultado[empresa]) resultado[empresa] = {};
-          resultado[empresa][p] = { cpl: 0, leads: leadsProyecto, costoAsignado: 0 };
-        }
-      });
+  // Totales
+  const totalPorEmpresa = useMemo(() => {
+    const acc = {};
+    empresasSeleccionadas.forEach(e => {
+      acc[e] = gastosSemanales.reduce((s, r) => s + (Number(r[e]) || 0), 0);
     });
-    return resultado;
-  }, [totalesGastos, proyectosUnicos, proyectoEmpresa, leadsPorProyecto]);
+    return acc;
+  }, [gastosSemanales, empresasSeleccionadas]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: name === 'clics' || name === 'impresiones' || name === 'costo' || name === 'leadsGenerados' ? Number(value) || 0 : value }));
-  };
+  const totalGeneral = Object.values(totalPorEmpresa).reduce((s, v) => s + v, 0);
+  const totalCapcim = totalPorEmpresa['CAPCIM'] || 0;
+  const totalLotes = totalPorEmpresa[empresaLotesActiva] || 0;
 
-  const handleGastoChange = (semanaIndex, columna, value) => {
-    const numValue = Number(value) || 0;
-    setGastosSemanales(prev => prev.map((s, i) => i === semanaIndex ? { ...s, [columna]: numValue } : s));
-  };
+  const leadsCapcim = proyectosCapcim.reduce((s, p) => s + (leadsPorProyecto[p] || 0), 0);
+  const leadsLotesTotal = proyectosLotesActivos.reduce((s, p) => s + (leadsPorProyecto[p] || 0), 0);
+  const cplCapcim = leadsCapcim > 0 ? totalCapcim / leadsCapcim : 0;
+  const cplLotes = leadsLotesTotal > 0 ? totalLotes / leadsLotesTotal : 0;
 
-  const handleProyectoEmpresaChange = (proyecto, empresa) => {
-    setProyectoEmpresa(prev => ({ ...prev, [proyecto]: empresa }));
+  const cplPorProyecto = useMemo(() => {
+    const result = {};
+    proyectosCapcim.forEach(p => {
+      const leads = leadsPorProyecto[p] || 0;
+      const prop = leadsCapcim > 0 ? leads / leadsCapcim : 0;
+      result[p] = { leads, costo: totalCapcim * prop, cpl: leads > 0 ? (totalCapcim * prop) / leads : 0 };
+    });
+    proyectosLotesActivos.forEach(p => {
+      const leads = leadsPorProyecto[p] || 0;
+      const prop = leadsLotesTotal > 0 ? leads / leadsLotesTotal : 0;
+      result[p] = { leads, costo: totalLotes * prop, cpl: leads > 0 ? (totalLotes * prop) / leads : 0 };
+    });
+    return result;
+  }, [proyectosCapcim, proyectosLotesActivos, leadsPorProyecto, leadsCapcim, leadsLotesTotal, totalCapcim, totalLotes]);
+
+  const handleGastoChange = (idx, col, val) => {
+    setGastosSemanales(prev => prev.map((s, i) => i === idx ? { ...s, [col]: Number(val) || 0 } : s));
   };
 
   const agregarSemana = () => {
     if (gastosSemanales.length >= 5) return;
-    const nuevaSemana = gastosSemanales.length + 1;
-    setGastosSemanales(prev => [...prev, { semana: nuevaSemana, CAPCIM: 0, INVERSIONES: 0, CONSTRUCTORA: 0, PROYECTOS: 0 }]);
+    setGastosSemanales(prev => [...prev, {
+      semana: prev.length + 1,
+      ...Object.fromEntries(empresasSeleccionadas.map(e => [e, 0])),
+    }]);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleGuardar = async () => {
     if (!periodo) return alert('Selecciona un período primero');
-
-    const merged = { 
-      ...(await getDatos(periodo).catch(() => ({}))), 
-      marketing: filas,
-      gastosSemanales,
-      proyectoEmpresa
-    };
-    await guardarDatos(periodo, merged);
+    const existing = await getDatos(periodo).catch(() => ({}));
+    await guardarDatos(periodo, {
+      ...existing,
+      gastosMarketing: gastosSemanales,
+      empresasSeleccionadas,
+      empresaLotesActiva,
+      proyectosExcluidos,
+    });
     onGuardado(periodo);
-    setFormData({ fecha: '', canal: '', campaña: '', clics: 0, impresiones: 0, costo: 0, leadsGenerados: 0 });
-    setVista('reporte');
-    cargar(periodo);
-  };
-
-
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!periodo) return alert('Selecciona un período primero');
-
-    const merged = { 
-      ...(await getDatos(periodo).catch(() => ({}))), 
-      marketing: filas,
-      gastosSemanales 
-    };
-    await guardarDatos(periodo, merged);
-    onGuardado(periodo);
-    setFormData({ fecha: '', canal: '', campaña: '', clics: 0, impresiones: 0, costo: 0, leadsGenerados: 0 });
+    setGuardado(true);
     setVista('reporte');
     cargar(periodo);
   };
 
   return (
     <div className="tab-page">
+
+      {/* CABECERA igual que demás pestañas */}
       <div className="tab-header">
         <div>
           <h1 className="tab-title">Marketing</h1>
           {periodo && <p className="tab-sub">{periodoLabel(periodo)}</p>}
         </div>
         <div className="tab-actions">
-          <button className={`btn-toggle ${vista === 'reporte' ? 'active' : ''}`} onClick={() => setVista('reporte')}>Ver Dashboard</button>
-          <button className={`btn-toggle ${vista === 'cargar' ? 'active' : ''}`} onClick={() => setVista('cargar')}>Ingresar Datos</button>
+          <button className={`btn-toggle ${vista === 'reporte' ? 'active' : ''}`} onClick={() => setVista('reporte')}>Ver reporte</button>
+          <button className={`btn-toggle ${vista === 'cargar' ? 'active' : ''}`} onClick={() => setVista('cargar')}>Ingresar datos</button>
         </div>
       </div>
 
+      {/* ── FORMULARIO ── */}
       {vista === 'cargar' && (
-        <div className="section-card">
-          <h2 className="section-title">Gastos Semanales</h2>
-          {periodo && <p className="tab-sub">Período: <strong>{periodoLabel(periodo)}</strong></p>}
-          
-          <div className="column-selector">
-            <label>Columnas a mostrar:</label>
-            <div className="column-checkboxes">
-              {COLUMNAS_GASTOS_BASE.map(col => (
-                <label key={col} className="checkbox-label">
+        <>
+          {/* Período info — igual al de leads */}
+          <div className="section-card">
+            <h2 className="section-title">Gastos de Marketing</h2>
+            {periodo
+              ? <p className="tab-sub">Período: <strong>{periodoLabel(periodo)}</strong></p>
+              : <p className="tab-sub" style={{ color: '#DC2626' }}>Selecciona un período en la barra superior primero</p>
+            }
+          </div>
+
+          {/* Paso 1: seleccionar empresas */}
+          <div className="section-card">
+            <h2 className="section-title">Paso 1 — Selecciona las empresas activas este mes</h2>
+            <p className="section-sub">Las columnas de la tabla de gastos se formarán según tu selección. Solo una empresa de lotes puede estar activa.</p>
+            <div className="mk-empresas-row">
+              {/* CAPCIM siempre disponible */}
+              <label className="mk-empresa-check capcim">
+                <input
+                  type="checkbox"
+                  checked={empresasSeleccionadas.includes('CAPCIM')}
+                  onChange={() => handleEmpresaToggle('CAPCIM')}
+                />
+                <span className="mk-empresa-nombre">CAPCIM</span>
+                <span className="mk-empresa-tipo">Departamentos</span>
+              </label>
+
+              {/* Separador */}
+              <div className="mk-separador">|</div>
+
+              {/* Empresas de lotes — solo una activa */}
+              {EMPRESA_LOTES.map(emp => (
+                <label key={emp} className={`mk-empresa-check lotes ${empresasSeleccionadas.includes(emp) ? 'activa' : ''}`}>
                   <input
-                    type="checkbox"
-                    checked={columnasVisibles.includes(col)}
-                    onChange={(e) => setColumnasVisibles(prev => e.target.checked 
-                      ? [...prev, col] 
-                      : prev.filter(c => c !== col)
-                    )}
+                    type="radio"
+                    name="empresa-lotes"
+                    checked={empresasSeleccionadas.includes(emp)}
+                    onChange={() => {
+                      // quitar otras de lotes, agregar esta
+                      setEmpresasSeleccionadas(prev => {
+                        const sinLotes = prev.filter(e => !EMPRESA_LOTES.includes(e));
+                        return [...sinLotes, emp];
+                      });
+                      setEmpresaLotesActiva(emp);
+                      setGastosSemanales(gs =>
+                        gs.map(s => {
+                          const { semana, CAPCIM } = s;
+                          return { semana, CAPCIM: CAPCIM || 0, [emp]: s[emp] || s.lotes || 0 };
+                        })
+                      );
+                    }}
                   />
-                  {col}
+                  <span className="mk-empresa-nombre">{emp}</span>
+                  <span className="mk-empresa-tipo">Lotes</span>
                 </label>
               ))}
             </div>
           </div>
-          
-          <div className="gastos-table-container">
-            <table className="gastos-table">
-              <thead>
-                <tr>
-                  <th>Semana</th>
-                  {columnasGastos.map(col => <th key={col}>{col} (S/)</th>)}
-                  <th>Total Semana</th>
-                </tr>
-              </thead>
-              <tbody>
-                {gastosSemanales.map((semana, idx) => {
-                  const totalSemana = columnasGastos.reduce((sum, col) => sum + (Number(semana[col]) || 0), 0);
-                  return (
-                    <tr key={idx}>
-                      <td><strong>Semana {semana.semana}</strong></td>
-                      {columnasGastos.map(col => (
-                        <td key={col}>
-                          <input
-                            type="number"
-                            value={semana[col] || ''}
-                            onChange={(e) => handleGastoChange(idx, col, e.target.value)}
-                            min="0"
-                            step="0.01"
-                            className="gasto-input"
-                            disabled={col === 'CAPCIM' ? false : !columnasVisibles.includes(col)}
-                          />
-                        </td>
-                      ))}
-                      <td className="total-semana">S/ {totalSemana.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot>
-                <tr>
-                  <td><strong>TOTAL</strong></td>
-                  {columnasGastos.map(col => (
-                    <td key={col} className="total-columna"><strong>S/ {(totalesGastos[col] || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong></td>
-                  ))}
-                  <td className="total-general"><strong>S/ {totalGeneralGastos.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong></td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
 
-          <div className="form-actions">
-            <button 
-              type="button" 
-              className="btn-secondary" 
-              onClick={agregarSemana}
-              disabled={gastosSemanales.length >= 5}
-              title={gastosSemanales.length >= 5 ? 'Máximo 5 semanas permitidas' : ''}
-            >
-              {gastosSemanales.length >= 5 ? 'Máx. 5 semanas' : '+ Agregar Semana'}
-            </button>
-            <button type="button" className="btn-primary" onClick={handleSubmit}>Guardar Gastos Semanales</button>
-            <button type="button" className="btn-secondary" onClick={() => setVista('reporte')}>Cancelar</button>
-          </div>
-        </div>
-      )}
-
-      {vista === 'cargar' && proyectosUnicos.length > 0 && (
-        <div className="section-card">
-          <h2 className="section-title">Asignar Proyectos a Empresas</h2>
-          <p className="section-sub">Selecciona a qué empresa pertenece cada proyecto para calcular CPL por empresa</p>
-          <div className="proyecto-empresa-grid">
-            {proyectosUnicos.map(proyecto => (
-              <div key={proyecto} className="proyecto-empresa-item">
-                <label>{proyecto}</label>
-                <select
-                  value={proyectoEmpresa[proyecto] || ''}
-                  onChange={(e) => handleProyectoEmpresaChange(proyecto, e.target.value)}
-                  className="empresa-select"
-                >
-                  <option value="">-- Seleccionar empresa --</option>
-                  {EMPRESAS.map(emp => <option key={emp} value={emp}>{emp}</option>)}
-                </select>
-                <span className="leads-count">({leadsPorProyecto[proyecto] || 0} leads)</span>
+          {/* Paso 2: proyectos de lotes 
+          {proyectosLotes.length > 0 && empresasSeleccionadas.some(e => EMPRESA_LOTES.includes(e)) && (
+            <div className="section-card">
+              <h2 className="section-title">Paso 2 — Proyectos de {empresaLotesActiva} este mes</h2>
+              <p className="section-sub">Por defecto todos los proyectos de lotes están activos. Desmarca los que no operen este mes.</p>
+              <div className="column-checkboxes" style={{ marginTop: 10, gap: 10 }}>
+                {proyectosLotes.map(p => (
+                  <label key={p} className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={!proyectosExcluidos.includes(p)}
+                      onChange={() => setProyectosExcluidos(prev =>
+                        prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]
+                      )}
+                    />
+                    <span>{p}</span>
+                    <span className="leads-count">({leadsPorProyecto[p] || 0} leads)</span>
+                  </label>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
+          )}*/}
+
+          {/* Paso 3: tabla de gastos */}
+          {empresasSeleccionadas.length > 0 && (
+            <div className="section-card">
+              <h2 className="section-title">Paso 2 — Ingresa los gastos semanales (S/)</h2>
+              <div className="gastos-table-container">
+                <table className="gastos-table">
+                  <thead>
+                    <tr>
+                      <th>Semana</th>
+                      {empresasSeleccionadas.includes('CAPCIM') && <th>CAPCIM</th>}
+                      {empresasSeleccionadas.filter(e => EMPRESA_LOTES.includes(e)).map(e => (
+                        <th key={e}>{e}</th>
+                      ))}
+                      <th>Total semana</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {gastosSemanales.map((semana, idx) => {
+                      const total = empresasSeleccionadas.reduce((s, e) => s + (Number(semana[e]) || 0), 0);
+                      return (
+                        <tr key={idx}>
+                          <td><strong>Semana {semana.semana}</strong></td>
+                          {empresasSeleccionadas.includes('CAPCIM') && (
+                            <td>
+                              <input type="number" className="gasto-input" min="0" step="0.01"
+                                value={semana.CAPCIM || ''}
+                                onChange={e => handleGastoChange(idx, 'CAPCIM', e.target.value)} />
+                            </td>
+                          )}
+                          {empresasSeleccionadas.filter(e => EMPRESA_LOTES.includes(e)).map(e => (
+                            <td key={e}>
+                              <input type="number" className="gasto-input" min="0" step="0.01"
+                                value={semana[e] || ''}
+                                onChange={ev => handleGastoChange(idx, e, ev.target.value)} />
+                            </td>
+                          ))}
+                          <td className="total-semana">S/ {fmt(total)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td><strong>TOTAL</strong></td>
+                      {empresasSeleccionadas.includes('CAPCIM') && (
+                        <td className="total-columna"><strong>S/ {fmt(totalCapcim)}</strong></td>
+                      )}
+                      {empresasSeleccionadas.filter(e => EMPRESA_LOTES.includes(e)).map(e => (
+                        <td key={e} className="total-columna"><strong>S/ {fmt(totalPorEmpresa[e] || 0)}</strong></td>
+                      ))}
+                      <td className="total-general"><strong>S/ {fmt(totalGeneral)}</strong></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+              <div className="form-actions">
+                <button type="button" className="btn-secondary" onClick={agregarSemana} disabled={gastosSemanales.length >= 5}>
+                  {gastosSemanales.length >= 5 ? 'Máx. 5 semanas' : '+ Agregar semana'}
+                </button>
+                <button type="button" className="btn-primary" onClick={handleGuardar}>Guardar</button>
+                <button type="button" className="btn-secondary" onClick={() => setVista('reporte')}>Cancelar</button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
+      {/* ── REPORTE ── */}
       {vista === 'reporte' && loading && <p className="loading-msg">Cargando datos...</p>}
 
-      {vista === 'reporte' && !loading && filas.length === 0 && gastosSemanales.every(s => columnasGastos.every(c => !s[c] || s[c] === 0)) && (
+      {vista === 'reporte' && !loading && !guardado && (
         <div className="empty-state">
           <p>No hay datos de marketing para este período.</p>
-          <button className="btn-primary" onClick={() => setVista('cargar')}>Ingresar primer registro</button>
+          <button className="btn-primary" onClick={() => setVista('cargar')}>Ingresar datos</button>
         </div>
       )}
 
-      {vista === 'reporte' && (filas.length > 0 || gastosSemanales.some(s => columnasGastos.some(c => s[c] > 0))) && (
+      {vista === 'reporte' && guardado && (
         <>
           <div className="kpi-grid">
-            <KpiCard label="Total Clics" value={totalClics.toLocaleString()} color="var(--azul)" />
-            <KpiCard label="Total Impresiones" value={totalImpresiones.toLocaleString()} sub={`CTR: ${ctrGlobal}%`} color="#6B7280" />
-            <KpiCard label="Costo Total Campañas" value={`S/ ${totalCosto.toLocaleString()}`} color="var(--naranja)" />
-            <KpiCard label="Leads Generados" value={totalLeads} sub={`CPL: S/ ${cplGlobal}`} color="var(--verde)" />
-            <KpiCard label="Total Gastos Semanales" value={`S/ ${totalGeneralGastos.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} color="#7C3AED" />
+            <KpiCard label="Inversión Total" value={`S/ ${fmt(totalGeneral)}`} color="var(--naranja)" />
+            <KpiCard label="Gasto CAPCIM" value={`S/ ${fmt(totalCapcim)}`} sub="Departamentos" color="#0891B2" />
+            <KpiCard label={`Gasto ${empresaLotesActiva}`} value={`S/ ${fmt(totalLotes)}`} sub="Lotes" color="#7C3AED" />
+            <KpiCard label="CPL CAPCIM" value={cplCapcim > 0 ? `S/ ${fmt(cplCapcim)}` : '—'} sub={`${leadsCapcim} leads`} color="#0891B2" />
+            <KpiCard label={`CPL ${empresaLotesActiva}`} value={cplLotes > 0 ? `S/ ${fmt(cplLotes)}` : '—'} sub={`${leadsLotesTotal} leads`} color="#7C3AED" />
           </div>
 
-          <div className="graficos-grid">
-            <Grafico titulo="Clics por Canal" datos={porCanal} />
-            <Grafico titulo="Leads por Canal" datos={leadsPorCanal} />
-            <Grafico titulo="Costo por Canal" datos={costoPorCanal} />
-            <Grafico titulo="Campañas" datos={porCampaña} />
-          </div>
-
+          {/* Gastos semanales readonly */}
           <div className="section-card">
-            <h2 className="section-title">Gastos Semanales</h2>
+            <h2 className="section-title">Gastos Semanales — {periodoLabel(periodo)}</h2>
             <div className="gastos-table-container">
               <table className="gastos-table">
                 <thead>
                   <tr>
                     <th>Semana</th>
-                    {columnasGastos.map(col => <th key={col}>{col} (S/)</th>)}
-                    <th>Total Semana</th>
+                    {empresasSeleccionadas.includes('CAPCIM') && <th>CAPCIM (S/)</th>}
+                    {empresasSeleccionadas.filter(e => EMPRESA_LOTES.includes(e)).map(e => <th key={e}>{e} (S/)</th>)}
+                    <th>Total</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {gastosSemanales.map((semana, idx) => {
-                    const totalSemana = columnasGastos.reduce((sum, col) => sum + (Number(semana[col]) || 0), 0);
+                  {gastosSemanales.map((s, i) => {
+                    const total = empresasSeleccionadas.reduce((sum, e) => sum + (Number(s[e]) || 0), 0);
                     return (
-                      <tr key={idx}>
-                        <td><strong>Semana {semana.semana}</strong></td>
-                        {columnasGastos.map(col => (
-                          <td key={col}>S/ {(Number(semana[col]) || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                        ))}
-                        <td className="total-semana"><strong>S/ {totalSemana.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong></td>
+                      <tr key={i}>
+                        <td><strong>Semana {s.semana}</strong></td>
+                        {empresasSeleccionadas.includes('CAPCIM') && <td>S/ {fmt(s.CAPCIM)}</td>}
+                        {empresasSeleccionadas.filter(e => EMPRESA_LOTES.includes(e)).map(e => <td key={e}>S/ {fmt(s[e])}</td>)}
+                        <td className="total-semana"><strong>S/ {fmt(total)}</strong></td>
                       </tr>
                     );
                   })}
@@ -378,92 +376,64 @@ export default function TabMarketing({ periodo, periodoLabel, onGuardado }) {
                 <tfoot>
                   <tr>
                     <td><strong>TOTAL</strong></td>
-                    {columnasGastos.map(col => (
-                      <td key={col} className="total-columna"><strong>S/ {(totalesGastos[col] || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong></td>
-                    ))}
-                    <td className="total-general"><strong>S/ {totalGeneralGastos.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong></td>
+                    {empresasSeleccionadas.includes('CAPCIM') && <td className="total-columna"><strong>S/ {fmt(totalCapcim)}</strong></td>}
+                    {empresasSeleccionadas.filter(e => EMPRESA_LOTES.includes(e)).map(e => <td key={e} className="total-columna"><strong>S/ {fmt(totalPorEmpresa[e] || 0)}</strong></td>)}
+                    <td className="total-general"><strong>S/ {fmt(totalGeneral)}</strong></td>
                   </tr>
                 </tfoot>
               </table>
             </div>
           </div>
 
-          {proyectosUnicos.length > 0 && (
-            <div className="section-card">
-              <h2 className="section-title">CPL por Empresa y Proyecto</h2>
-              <p className="section-sub">Costo Por Lead calculado distribuyendo el gasto semanal de cada empresa entre sus proyectos asignados</p>
-              <div className="tabla-scroll-simple">
-                <table className="resumen-tabla cpl-table">
-                  <thead>
-                    <tr>
-                      <th>Empresa</th>
-                      <th>Proyecto</th>
-                      <th>Leads</th>
-                      <th>Costo Asignado (S/)</th>
-                      <th>CPL (S/)</th>
-                    </tr>
-                  </thead>
+          {/* CPL por proyecto */}
+          {leadsData.length > 0 && (
+            <div className="mk-cpl-grid">
+              <div className="section-card">
+                <div className="mk-seccion-header departamentos">
+                  <span>DEPARTAMENTOS</span>
+                  <span className="mk-empresa-badge">CAPCIM</span>
+                </div>
+                <table className="resumen-tabla" style={{ marginTop: 10 }}>
+                  <thead><tr><th>Proyecto</th><th>Leads</th><th>Costo (S/)</th><th>CPL (S/)</th></tr></thead>
                   <tbody>
-                    {EMPRESAS.map(empresa => {
-                      const proyectosEmpresa = proyectosUnicos.filter(p => proyectoEmpresa[p] === empresa);
-                      if (proyectosEmpresa.length === 0) return null;
-                      return proyectosEmpresa.map(proyecto => {
-                        const data = cplPorEmpresaProyecto[empresa]?.[proyecto];
-                        if (!data) return null;
-                        return (
-                          <tr key={`${empresa}-${proyecto}`}>
-                            <td><strong>{empresa}</strong></td>
-                            <td>{proyecto}</td>
-                            <td>{data.leads}</td>
-                            <td>S/ {Number(data.costoAsignado).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                            <td><strong>S/ {Number(data.cpl).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong></td>
-                          </tr>
-                        );
-                      });
-                    })}
-                    {EMPRESAS.every(emp => !proyectosUnicos.some(p => proyectoEmpresa[p] === emp)) && (
-                      <tr>
-                        <td colSpan="5" style={{ textAlign: 'center', color: 'var(--gris-texto)' }}>No hay proyectos asignados a empresas. Ve a "Ingresar Datos" para asignarlos.</td>
-                      </tr>
-                    )}
+                    {proyectosCapcim.length === 0
+                      ? <tr><td colSpan="4" style={{ textAlign: 'center', color: 'var(--gris-texto)' }}>Sin leads de RIO HORIZONTE cargados</td></tr>
+                      : proyectosCapcim.map(p => {
+                          const d = cplPorProyecto[p];
+                          return <tr key={p}><td>{p}</td><td>{d?.leads || 0}</td><td>S/ {fmt(d?.costo)}</td><td><strong>S/ {fmt(d?.cpl)}</strong></td></tr>;
+                        })
+                    }
+                    <tr className="fila-total">
+                      <td><strong>Total CAPCIM</strong></td>
+                      <td><strong>{leadsCapcim}</strong></td>
+                      <td><strong>S/ {fmt(totalCapcim)}</strong></td>
+                      <td><strong>S/ {fmt(cplCapcim)}</strong></td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
-            </div>
-          )}
 
-          {filas.length > 0 && (
-            <div className="section-card">
-              <h2 className="section-title">Detalle de Campañas</h2>
-              <div className="tabla-scroll-simple">
-                <table className="resumen-tabla">
-                  <thead>
-                    <tr>
-                      <th>Fecha</th>
-                      <th>Canal</th>
-                      <th>Campaña</th>
-                      <th>Clics</th>
-                      <th>Impresiones</th>
-                      <th>CTR %</th>
-                      <th>Costo (S/)</th>
-                      <th>Leads</th>
-                      <th>CPL (S/)</th>
-                    </tr>
-                  </thead>
+              <div className="section-card">
+                <div className="mk-seccion-header lotes">
+                  <span>LOTES</span>
+                  <span className="mk-empresa-badge">{empresaLotesActiva}</span>
+                </div>
+                <table className="resumen-tabla" style={{ marginTop: 10 }}>
+                  <thead><tr><th>Proyecto</th><th>Leads</th><th>Costo (S/)</th><th>CPL (S/)</th></tr></thead>
                   <tbody>
-                    {filas.map((r, i) => (
-                      <tr key={i}>
-                        <td>{r.Fecha || r.fecha || ''}</td>
-                        <td>{r.Canal || r.canal || ''}</td>
-                        <td>{r.Campaña || r.campaña || ''}</td>
-                        <td>{Number(r.Clics || r.clics || 0).toLocaleString()}</td>
-                        <td>{Number(r.Impresiones || r.impresiones || 0).toLocaleString()}</td>
-                        <td>{r.CTR || r.ctr || (r.impresiones > 0 ? ((r.clics / r.impresiones) * 100).toFixed(2) : 0)}%</td>
-                        <td>S/ {Number(r.Costo || r.costo || 0).toFixed(2)}</td>
-                        <td>{Number(r['Leads Generados'] || r.leadsGenerados || 0)}</td>
-                        <td>S/ {r.CPL || r.cpl || (r.leadsGenerados > 0 ? (r.costo / r.leadsGenerados).toFixed(2) : 0)}</td>
-                      </tr>
-                    ))}
+                    {proyectosLotesActivos.length === 0
+                      ? <tr><td colSpan="4" style={{ textAlign: 'center', color: 'var(--gris-texto)' }}>Sin proyectos activos</td></tr>
+                      : proyectosLotesActivos.map(p => {
+                          const d = cplPorProyecto[p];
+                          return <tr key={p}><td>{p}</td><td>{d?.leads || 0}</td><td>S/ {fmt(d?.costo)}</td><td><strong>S/ {fmt(d?.cpl)}</strong></td></tr>;
+                        })
+                    }
+                    <tr className="fila-total">
+                      <td><strong>Total {empresaLotesActiva}</strong></td>
+                      <td><strong>{leadsLotesTotal}</strong></td>
+                      <td><strong>S/ {fmt(totalLotes)}</strong></td>
+                      <td><strong>S/ {fmt(cplLotes)}</strong></td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
