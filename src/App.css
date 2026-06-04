@@ -149,3 +149,24 @@
   font-weight: 600;
 }
 .btn-borrar-todo:hover { background: #DC2626; }
+
+@media (max-width: 768px) {
+  .topbar-inner { gap: 0.75rem; padding: 0 1rem; }
+  .topbar-tabs { gap: 1px; }
+  .tab-btn { padding: 5px 8px; font-size: 0.78rem; }
+  .brand-text { display: none; }
+  .periodo-select { font-size: 0.78rem; padding: 5px 6px; }
+  .btn-borrar-top { font-size: 0.75rem; padding: 5px 8px; }
+  .app-content { padding: 1rem; }
+}
+
+@media (max-width: 480px) {
+  .topbar { height: auto; min-height: 56px; }
+  .topbar-inner { flex-wrap: wrap; padding: 8px 1rem; gap: 6px; }
+  .topbar-brand { width: 100%; }
+  .brand-text { display: block; }
+  .topbar-tabs { width: 100%; overflow-x: auto; padding-bottom: 2px; }
+  .tab-btn { white-space: nowrap; font-size: 0.8rem; }
+  .topbar-right { width: 100%; justify-content: flex-end; }
+  .app-content { padding: 0.75rem; }
+}

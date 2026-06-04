@@ -93,3 +93,19 @@
   color: var(--negro);
 }
 .resumen-tabla tbody tr:hover td { background: var(--naranja-light); }
+
+
+
+@media (max-width: 768px) {
+  .tab-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
+  .graficos-grid { grid-template-columns: 1fr; }
+  .section-card { padding: 1rem; }
+}
+
+@media (max-width: 480px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
+  .tab-title { font-size: 1.1rem; }
+  .tab-actions { width: 100%; }
+  .btn-toggle { flex: 1; text-align: center; }
+}

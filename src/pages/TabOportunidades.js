@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { getDatos } from '../utils/api';
 import { agrupar, aObjeto, extraerProyecto } from '../utils/csvParser';
 import KpiCard from '../components/KpiCard';
 import Grafico from '../components/Grafico';
 import Tabla from '../components/Tabla';
 import UploadCSV from '../components/UploadCSV';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import './Tab.css';
 
 export default function TabOportunidades({ periodo, periodoLabel, onGuardado }) {
@@ -30,6 +31,20 @@ export default function TabOportunidades({ periodo, periodoLabel, onGuardado }) 
   const porEstado = aObjeto(agrupar(filasNorm, 'Estado'));
   const porProyecto = aObjeto(agrupar(filasNorm, 'Proyecto'));
   const porCanal = aObjeto(agrupar(filasNorm, 'Contacto'));
+
+  // Evolución por día
+  const porDia = useMemo(() => {
+    const counts = {};
+    filas.forEach(r => {
+      const raw = (r.Fecha || '').split(' ')[0];
+      const partes = raw.includes('/') ? raw.split('/') : raw.split('-');
+      const key = partes.length === 3
+        ? (raw.includes('/') ? `${partes[2]}-${partes[1]}-${partes[0]}` : raw)
+        : raw;
+      if (key) counts[key] = (counts[key] || 0) + 1;
+    });
+    return Object.entries(counts).sort((a, b) => a[0].localeCompare(b[0])).map(([nombre, cantidad]) => ({ nombre, cantidad }));
+  }, [filas]);
 
   return (
     <div className="tab-page">
@@ -71,14 +86,29 @@ export default function TabOportunidades({ periodo, periodoLabel, onGuardado }) 
 
           <div className="graficos-grid">
             <Grafico titulo="Oportunidades por Asesor" datos={porAsesor} />
-            <Grafico titulo="Estado de Oportunidades" datos={porEstado} />
             <Grafico titulo="Oportunidades por Proyecto" datos={porProyecto} />
+            <Grafico titulo="Estado de Oportunidades" datos={porEstado} />
             <Grafico titulo="Canal de Origen" datos={porCanal} />
           </div>
 
+          {porDia.length > 1 && (
+            <div className="grafico-card">
+              <h3 className="grafico-titulo">Evolución de oportunidades en el tiempo</h3>
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={porDia} margin={{ top: 4, right: 12, left: 0, bottom: 40 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
+                  <XAxis dataKey="nombre" tick={{ fontSize: 10, fill: '#6B7280' }} angle={-35} textAnchor="end" interval={0} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: '#6B7280' }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #E5E7EB', fontSize: 12 }} />
+                  <Line type="monotone" dataKey="cantidad" stroke="#2563EB" strokeWidth={2} dot={{ fill: '#2563EB', r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
           <div className="section-card">
             <h2 className="section-title">Detalle de Oportunidades</h2>
-            <Tabla filas={filas} columnas={Object.keys(filas[0]).filter(c => !['Llamar','Whatsapp','Operaciones/Crear','Historial','Proformas','Editar'].includes(c))} />
+            <Tabla filas={filas} columnas={filas.length > 0 ? Object.keys(filas[0]) : []} />
           </div>
         </>
       )}

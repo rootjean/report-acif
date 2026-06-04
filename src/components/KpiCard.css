@@ -10,3 +10,7 @@
 .kpi-value { font-size: 1.75rem; font-weight: 700; color: var(--negro); line-height: 1; }
 .kpi-label { font-size: 0.8rem; color: var(--gris-texto); font-weight: 500; margin-top: 4px; }
 .kpi-sub { font-size: 0.75rem; color: #9CA3AF; }
+@media (max-width: 480px) {
+  .kpi-value { font-size: 1.4rem; }
+  .kpi-label { font-size: 0.75rem; }
+}

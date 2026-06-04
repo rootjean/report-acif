@@ -161,3 +161,16 @@
 }
 .asistente-send:hover { background: #C4510A; }
 .asistente-send:disabled { opacity: 0.4; cursor: default; }
+@media (max-width: 480px) {
+  .asistente-panel {
+    right: 12px;
+    left: 12px;
+    width: auto;
+    bottom: 76px;
+  }
+  .asistente-burbuja {
+    right: 12px;
+    bottom: 16px;
+  }
+  .mensaje-burbuja { max-width: 85vw; }
+}
