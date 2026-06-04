@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { getDatos, guardarDatos } from '../utils/api';
+import '../components/UploadCSV.css';
+import './Tab.css';
 import { extraerProyecto } from '../utils/csvParser';
 import KpiCard from '../components/KpiCard';
 import './Tab.css';
@@ -25,6 +27,8 @@ export default function TabMarketing({ periodo, periodoLabel, onGuardado }) {
   const [empresasSeleccionadas, setEmpresasSeleccionadas] = useState(['CAPCIM', 'INVERSIONES']);
   const [proyectosExcluidos, setProyectosExcluidos] = useState([]);
   const [gastosSemanales, setGastosSemanales] = useState([]);
+  const [periodoInput, setPeriodoInput] = useState(periodo || '');
+
 
   const cargar = (p) => {
     if (!p) return;
@@ -177,16 +181,24 @@ export default function TabMarketing({ periodo, periodoLabel, onGuardado }) {
         </div>
       </div>
 
-      {/* ── FORMULARIO ── */}
+          {/* ── FORMULARIO ── */}
       {vista === 'cargar' && (
         <>
-          {/* Período info — igual al de leads */}
+             {/* Período */}
           <div className="section-card">
             <h2 className="section-title">Gastos de Marketing</h2>
-            {periodo
-              ? <p className="tab-sub">Período: <strong>{periodoLabel(periodo)}</strong></p>
-              : <p className="tab-sub" style={{ color: '#DC2626' }}>Selecciona un período en la barra superior primero</p>
-            }
+            <div className="upload-periodo-row">
+              <label>Período:</label>
+              <input
+                type="month"
+                className="input-month"
+                value={periodoInput}
+                onChange={e => setPeriodoInput(e.target.value)}
+              />
+              <span className="upload-hint">
+                Selecciona el mes al que corresponden estos gastos
+              </span>
+            </div>
           </div>
 
           {/* Paso 1: seleccionar empresas */}
