@@ -7,6 +7,7 @@ import TabLeads from './pages/TabLeads';
 import TabOportunidades from './pages/TabOportunidades';
 import TabVentas from './pages/TabVentas';
 import TabMarketing from './pages/TabMarketing';
+import TabResumenMes from './pages/TabResumenMes';
 
 const TABS = [
   { id: 'resumen', label: 'Resumen General' },
@@ -14,6 +15,8 @@ const TABS = [
   { id: 'oportunidades', label: 'Oportunidades' },
   { id: 'ventas', label: 'Ventas' },
   { id: 'marketing', label: 'Marketing' },
+  { id: 'resumenmes', label: 'Resumen Mes' },
+
 ];
 
 export default function App() {
@@ -101,6 +104,7 @@ export default function App() {
         {tab === 'oportunidades' && <TabOportunidades periodo={periodoActivo} periodoLabel={periodoLabel} onGuardado={onDatosGuardados} />}
         {tab === 'ventas' && <TabVentas periodo={periodoActivo} periodoLabel={periodoLabel} onGuardado={onDatosGuardados} />}
         {tab === 'marketing' && <TabMarketing periodo={periodoActivo} periodoLabel={periodoLabel} onGuardado={onDatosGuardados} />}
+        {tab === 'resumenmes' && <TabResumenMes periodo={periodoActivo} periodoLabel={periodoLabel} />}
       </main>
 
       {/* MODAL GESTIONAR DATOS */}

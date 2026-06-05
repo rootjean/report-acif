@@ -1,0 +1,68 @@
+.ind-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.ind-card {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ind-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--gris-borde);
+  gap: 8px;
+}
+
+.ind-card-titulo {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--negro);
+}
+
+.ind-card-tabs {
+  display: flex;
+  border: 1px solid var(--gris-borde);
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.ind-card-tabs button {
+  background: transparent;
+  border: none;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  color: var(--gris-texto);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.ind-card-tabs button:first-child {
+  border-right: 1px solid var(--gris-borde);
+}
+
+.ind-card-tabs button.active {
+  background: var(--naranja);
+  color: #fff;
+  font-weight: 600;
+}
+
+.ind-card-body {
+  padding: 12px;
+  flex: 1;
+  overflow-x: auto;
+}
+
+@media (max-width: 768px) {
+  .ind-grid { grid-template-columns: 1fr; }
+}
