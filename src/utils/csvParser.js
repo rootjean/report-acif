@@ -23,10 +23,8 @@ export function parseMonto(str) {
 // Extrae proyecto base de strings como "LAS RETAMAS - Etapa 01 - Lote: 5 - Mz.: A"
 export function extraerProyecto(str) {
   if (!str) return 'Sin proyecto';
-  const partes = String(str).split(' - ');
-  return partes[0].trim();
+  return String(str).trim();
 }
-
 // Formatea número como moneda peruana
 export function formatMonto(n) {
   if (n >= 1_000_000) return `S/ ${(n / 1_000_000).toFixed(2)}M`;

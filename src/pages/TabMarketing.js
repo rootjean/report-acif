@@ -7,6 +7,8 @@ import KpiCard from '../components/KpiCard';
 import './Tab.css';
 
 const EMPRESA_LOTES = ['INVERSIONES', 'CONSTRUCTORA', 'PROYECTOS'];
+const PROYECTOS_CAPCIM = ['RIO HORIZONTE', 'RIO HORIZONTE - ÚNICA'];
+
 const GASTOS_VACIO = (semanas = 4, empresas = []) =>
   Array.from({ length: semanas }, (_, i) => ({
     semana: i + 1,
@@ -21,6 +23,7 @@ export default function TabMarketing({ periodo, periodoLabel, onGuardado }) {
   const [loading, setLoading] = useState(false);
   const [leadsData, setLeadsData] = useState([]);
   const [guardado, setGuardado] = useState(false);
+  const [ventasData, setVentasData] = useState([]);
 
   // Configuración
   const [empresaLotesActiva, setEmpresaLotesActiva] = useState('INVERSIONES');
@@ -36,6 +39,8 @@ export default function TabMarketing({ periodo, periodoLabel, onGuardado }) {
     getDatos(p)
       .then(d => {
         setLeadsData(d.leads || []);
+        setVentasData(d.ventas || []);
+        
         const empSel = d.empresasSeleccionadas || ['CAPCIM', 'INVERSIONES'];
         setEmpresasSeleccionadas(empSel);
         setEmpresaLotesActiva(d.empresaLotesActiva || 'INVERSIONES');
@@ -83,14 +88,16 @@ export default function TabMarketing({ periodo, periodoLabel, onGuardado }) {
     });
     return Array.from(set).sort();
   }, [leadsData]);
-
   const proyectosCapcim = useMemo(() =>
-    todosProyectos.filter(p => p.toUpperCase().includes('HORIZONTE')),
-    [todosProyectos]);
+    todosProyectos.filter(p => PROYECTOS_CAPCIM.includes(p.toUpperCase())),
+    [todosProyectos]
+  );
 
   const proyectosLotes = useMemo(() =>
-    todosProyectos.filter(p => !p.toUpperCase().includes('HORIZONTE')),
-    [todosProyectos]);
+    todosProyectos.filter(p => !PROYECTOS_CAPCIM.includes(p.toUpperCase())),
+    [todosProyectos]
+  );
+
 
   const proyectosLotesActivos = useMemo(() =>
     proyectosLotes.filter(p => !proyectosExcluidos.includes(p)),
@@ -116,13 +123,78 @@ export default function TabMarketing({ periodo, periodoLabel, onGuardado }) {
   }, [gastosSemanales, empresasSeleccionadas]);
 
   const totalGeneral = Object.values(totalPorEmpresa).reduce((s, v) => s + v, 0);
-  const totalCapcim = totalPorEmpresa['CAPCIM'] || 0;
-  const totalLotes = totalPorEmpresa[empresaLotesActiva] || 0;
 
-  const leadsCapcim = proyectosCapcim.reduce((s, p) => s + (leadsPorProyecto[p] || 0), 0);
+
+  const totalCapcim = totalPorEmpresa['CAPCIM'] || 0;
+
+  const empresasLotesActivas = useMemo(() =>
+    empresasSeleccionadas.filter(e => EMPRESA_LOTES.includes(e)),
+    [empresasSeleccionadas]
+  );
+
+  const totalLotes = useMemo(() =>
+    empresasLotesActivas.reduce((s, e) => s + (totalPorEmpresa[e] || 0), 0),
+    [empresasLotesActivas, totalPorEmpresa]
+  );
+  
+
   const leadsLotesTotal = proyectosLotesActivos.reduce((s, p) => s + (leadsPorProyecto[p] || 0), 0);
-  const cplCapcim = leadsCapcim > 0 ? totalCapcim / leadsCapcim : 0;
   const cplLotes = leadsLotesTotal > 0 ? totalLotes / leadsLotesTotal : 0;
+
+// ← AGREGA ESTAS DOS LÍNEAS AQUÍ
+  const leadsCapcim = proyectosCapcim.reduce((s, p) => s + (leadsPorProyecto[p] || 0), 0);
+  const cplCapcim = leadsCapcim > 0 ? totalCapcim / leadsCapcim : 0;
+
+  // ── CAC ──
+  const parseMonto = (str) => {
+    if (!str) return 0;
+    return parseFloat(String(str).replace(/[^0-9.]/g, '')) || 0;
+  };
+
+  const ventasVendidas = useMemo(() =>
+    ventasData.filter(v => v['Estado lote'] === 'VENDIDO'),
+    [ventasData]
+  );
+
+  const extraerProyectoVenta = (lote = '') => {
+    const u = lote.toUpperCase();
+    if (u.includes('RIO HORIZONTE') || u.includes('HORIZONTE')) return 'CAPCIM';
+    return 'LOTES';
+  };
+
+  const ventasCapcim = useMemo(() =>
+    ventasVendidas.filter(v => extraerProyectoVenta(v['Lote']) === 'CAPCIM').length,
+    [ventasVendidas]
+  );
+
+  const ventasLotes = useMemo(() =>
+    ventasVendidas.filter(v => extraerProyectoVenta(v['Lote']) === 'LOTES').length,
+    [ventasVendidas]
+  );
+
+  const montoVentasCapcim = useMemo(() =>
+    ventasVendidas
+      .filter(v => extraerProyectoVenta(v['Lote']) === 'CAPCIM')
+      .reduce((s, v) => s + parseMonto(v['Monto Total']), 0),
+    [ventasVendidas]
+  );
+
+  const montoVentasLotes = useMemo(() =>
+    ventasVendidas
+      .filter(v => extraerProyectoVenta(v['Lote']) === 'LOTES')
+      .reduce((s, v) => s + parseMonto(v['Monto Total']), 0),
+    [ventasVendidas]
+  );
+
+  const cacCapcim = ventasCapcim > 0 ? totalCapcim / ventasCapcim : 0;
+  const cacLotes = ventasLotes > 0 ? totalLotes / ventasLotes : 0;
+
+  const roiCapcim = totalCapcim > 0 ? montoVentasCapcim / totalCapcim : 0;
+  const roiLotes = totalLotes > 0 ? montoVentasLotes / totalLotes : 0;
+
+  const tasaConvCapcim = leadsCapcim > 0 ? (ventasCapcim / leadsCapcim) * 100 : 0;
+  const tasaConvLotes = leadsLotesTotal > 0 ? (ventasLotes / leadsLotesTotal) * 100 : 0;
+
 
   const cplPorProyecto = useMemo(() => {
     const result = {};
@@ -225,22 +297,22 @@ export default function TabMarketing({ periodo, periodoLabel, onGuardado }) {
               {EMPRESA_LOTES.map(emp => (
                 <label key={emp} className={`mk-empresa-check lotes ${empresasSeleccionadas.includes(emp) ? 'activa' : ''}`}>
                   <input
-                    type="radio"
-                    name="empresa-lotes"
+                    type="checkbox"
                     checked={empresasSeleccionadas.includes(emp)}
                     onChange={() => {
-                      // quitar otras de lotes, agregar esta
                       setEmpresasSeleccionadas(prev => {
-                        const sinLotes = prev.filter(e => !EMPRESA_LOTES.includes(e));
-                        return [...sinLotes, emp];
+                        const next = prev.includes(emp)
+                          ? prev.filter(e => e !== emp)
+                          : [...prev, emp];
+                        // reconstruir gastos con nuevas columnas
+                        setGastosSemanales(gs =>
+                          gs.map(s => ({
+                            semana: s.semana,
+                            ...Object.fromEntries(next.map(e => [e, s[e] || 0])),
+                          }))
+                        );
+                        return next;
                       });
-                      setEmpresaLotesActiva(emp);
-                      setGastosSemanales(gs =>
-                        gs.map(s => {
-                          const { semana, CAPCIM } = s;
-                          return { semana, CAPCIM: CAPCIM || 0, [emp]: s[emp] || s.lotes || 0 };
-                        })
-                      );
                     }}
                   />
                   <span className="mk-empresa-nombre">{emp}</span>
@@ -250,33 +322,10 @@ export default function TabMarketing({ periodo, periodoLabel, onGuardado }) {
             </div>
           </div>
 
-          {/* Paso 2: proyectos de lotes 
-          {proyectosLotes.length > 0 && empresasSeleccionadas.some(e => EMPRESA_LOTES.includes(e)) && (
-            <div className="section-card">
-              <h2 className="section-title">Paso 2 — Proyectos de {empresaLotesActiva} este mes</h2>
-              <p className="section-sub">Por defecto todos los proyectos de lotes están activos. Desmarca los que no operen este mes.</p>
-              <div className="column-checkboxes" style={{ marginTop: 10, gap: 10 }}>
-                {proyectosLotes.map(p => (
-                  <label key={p} className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={!proyectosExcluidos.includes(p)}
-                      onChange={() => setProyectosExcluidos(prev =>
-                        prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]
-                      )}
-                    />
-                    <span>{p}</span>
-                    <span className="leads-count">({leadsPorProyecto[p] || 0} leads)</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}*/}
-
           {/* Paso 3: tabla de gastos */}
           {empresasSeleccionadas.length > 0 && (
             <div className="section-card">
-              <h2 className="section-title">Paso 2 — Ingresa los gastos semanales (S/)</h2>
+              <h2 className="section-title">Paso 2 — Ingresa los gastos semanales ($)</h2>
               <div className="gastos-table-container">
                 <table className="gastos-table">
                   <thead>
@@ -309,7 +358,7 @@ export default function TabMarketing({ periodo, periodoLabel, onGuardado }) {
                                 onChange={ev => handleGastoChange(idx, e, ev.target.value)} />
                             </td>
                           ))}
-                          <td className="total-semana">S/ {fmt(total)}</td>
+                          <td className="total-semana">$ {fmt(total)}</td>
                         </tr>
                       );
                     })}
@@ -318,12 +367,12 @@ export default function TabMarketing({ periodo, periodoLabel, onGuardado }) {
                     <tr>
                       <td><strong>TOTAL</strong></td>
                       {empresasSeleccionadas.includes('CAPCIM') && (
-                        <td className="total-columna"><strong>S/ {fmt(totalCapcim)}</strong></td>
+                        <td className="total-columna"><strong>$ {fmt(totalCapcim)}</strong></td>
                       )}
                       {empresasSeleccionadas.filter(e => EMPRESA_LOTES.includes(e)).map(e => (
-                        <td key={e} className="total-columna"><strong>S/ {fmt(totalPorEmpresa[e] || 0)}</strong></td>
+                        <td key={e} className="total-columna"><strong>$ {fmt(totalPorEmpresa[e] || 0)}</strong></td>
                       ))}
-                      <td className="total-general"><strong>S/ {fmt(totalGeneral)}</strong></td>
+                      <td className="total-general"><strong>$ {fmt(totalGeneral)}</strong></td>
                     </tr>
                   </tfoot>
                 </table>
@@ -353,12 +402,50 @@ export default function TabMarketing({ periodo, periodoLabel, onGuardado }) {
       {vista === 'reporte' && guardado && (
         <>
           <div className="kpi-grid">
-            <KpiCard label="Inversión Total" value={`S/ ${fmt(totalGeneral)}`} color="var(--naranja)" />
-            <KpiCard label="Gasto CAPCIM" value={`S/ ${fmt(totalCapcim)}`} sub="Departamentos" color="#0891B2" />
-            <KpiCard label={`Gasto ${empresaLotesActiva}`} value={`S/ ${fmt(totalLotes)}`} sub="Lotes" color="#7C3AED" />
-            <KpiCard label="CPL CAPCIM" value={cplCapcim > 0 ? `S/ ${fmt(cplCapcim)}` : '—'} sub={`${leadsCapcim} leads`} color="#0891B2" />
-            <KpiCard label={`CPL ${empresaLotesActiva}`} value={cplLotes > 0 ? `S/ ${fmt(cplLotes)}` : '—'} sub={`${leadsLotesTotal} leads`} color="#7C3AED" />
+            <KpiCard label="Inversión Total" value={`$ ${fmt(totalGeneral)}`} color="var(--naranja)" />
+            <KpiCard label="Gasto CAPCIM" value={`$ ${fmt(totalCapcim)}`} sub="Departamentos" color="#0891B2" />
+            <KpiCard label="Gasto Lotes" value={`$ ${fmt(totalLotes)}`} sub={empresasLotesActivas.join(' + ') || '—'} color="#7C3AED" />
+            <KpiCard label="CPL CAPCIM" value={cplCapcim > 0 ? `$ ${fmt(cplCapcim)}` : '—'} sub={`${leadsCapcim} leads`} color="#0891B2" />
+            <KpiCard label="CPL Lotes" value={cplLotes > 0 ? `$ ${fmt(cplLotes)}` : '—'} sub={`${leadsLotesTotal} leads`} color="#7C3AED" />
+            <KpiCard label="CAC CAPCIM" value={cacCapcim > 0 ? `$ ${fmt(cacCapcim)}` : '—'} sub={`${ventasCapcim} ventas`} color="#0891B2" />
+            <KpiCard label="CAC Lotes" value={cacLotes > 0 ? `$ ${fmt(cacLotes)}` : '—'} sub={`${ventasLotes} ventas`} color="#7C3AED" />
+            <KpiCard label="ROI CAPCIM" value={roiCapcim > 0 ? `${fmt(roiCapcim)}x` : '—'} sub={`S/ ${fmt(montoVentasCapcim)} vendido`} color="#059669" />
+            <KpiCard label="ROI Lotes" value={roiLotes > 0 ? `${fmt(roiLotes)}x` : '—'} sub={`S/ ${fmt(montoVentasLotes)} vendido`} color="#059669" />
           </div>
+
+          {ventasData.length > 0 && (
+          <div className="mk-cpl-grid" style={{ marginBottom: 0 }}>
+            <div className="section-card">
+              <div className="mk-seccion-header departamentos">
+                <span>EMBUDO CAPCIM</span>
+                <span className="mk-empresa-badge">CAPCIM</span>
+              </div>
+              <table className="resumen-tabla" style={{ marginTop: 10 }}>
+                <thead><tr><th>Etapa</th><th>Cantidad</th><th>Conversión</th></tr></thead>
+                <tbody>
+                  <tr><td>Leads</td><td>{leadsCapcim}</td><td>—</td></tr>
+                  <tr><td>Ventas cerradas</td><td>{ventasCapcim}</td><td><strong>{fmt(tasaConvCapcim)}%</strong></td></tr>
+                  <tr><td>Monto vendido</td><td colSpan="2"><strong>S/ {fmt(montoVentasCapcim)}</strong></td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div className="section-card">
+              <div className="mk-seccion-header lotes">
+                <span>EMBUDO LOTES</span>
+                <span className="mk-empresa-badge">{empresasLotesActivas.join(' + ') || '—'}</span>
+              </div>
+              <table className="resumen-tabla" style={{ marginTop: 10 }}>
+                <thead><tr><th>Etapa</th><th>Cantidad</th><th>Conversión</th></tr></thead>
+                <tbody>
+                  <tr><td>Leads</td><td>{leadsLotesTotal}</td><td>—</td></tr>
+                  <tr><td>Ventas cerradas</td><td>{ventasLotes}</td><td><strong>{fmt(tasaConvLotes)}%</strong></td></tr>
+                  <tr><td>Monto vendido</td><td colSpan="2"><strong>S/ {fmt(montoVentasLotes)}</strong></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
           {/* Gastos semanales readonly */}
           <div className="section-card">
@@ -368,9 +455,9 @@ export default function TabMarketing({ periodo, periodoLabel, onGuardado }) {
                 <thead>
                   <tr>
                     <th>Semana</th>
-                    {empresasSeleccionadas.includes('CAPCIM') && <th>CAPCIM (S/)</th>}
-                    {empresasSeleccionadas.filter(e => EMPRESA_LOTES.includes(e)).map(e => <th key={e}>{e} (S/)</th>)}
-                    <th>Total</th>
+                    {empresasSeleccionadas.includes('CAPCIM') && <th>CAPCIM (USD)</th>}
+                    {empresasSeleccionadas.filter(e => EMPRESA_LOTES.includes(e)).map(e => <th key={e}>{e} (USD)</th>)}
+                    <th>Total Semana</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -379,9 +466,9 @@ export default function TabMarketing({ periodo, periodoLabel, onGuardado }) {
                     return (
                       <tr key={i}>
                         <td><strong>Semana {s.semana}</strong></td>
-                        {empresasSeleccionadas.includes('CAPCIM') && <td>S/ {fmt(s.CAPCIM)}</td>}
-                        {empresasSeleccionadas.filter(e => EMPRESA_LOTES.includes(e)).map(e => <td key={e}>S/ {fmt(s[e])}</td>)}
-                        <td className="total-semana"><strong>S/ {fmt(total)}</strong></td>
+                        {empresasSeleccionadas.includes('CAPCIM') && <td>$ {fmt(s.CAPCIM)}</td>}
+                        {empresasSeleccionadas.filter(e => EMPRESA_LOTES.includes(e)).map(e => <td key={e}>$ {fmt(s[e])}</td>)}
+                        <td className="total-semana"><strong>$ {fmt(total)}</strong></td>
                       </tr>
                     );
                   })}
@@ -389,9 +476,9 @@ export default function TabMarketing({ periodo, periodoLabel, onGuardado }) {
                 <tfoot>
                   <tr>
                     <td><strong>TOTAL</strong></td>
-                    {empresasSeleccionadas.includes('CAPCIM') && <td className="total-columna"><strong>S/ {fmt(totalCapcim)}</strong></td>}
-                    {empresasSeleccionadas.filter(e => EMPRESA_LOTES.includes(e)).map(e => <td key={e} className="total-columna"><strong>S/ {fmt(totalPorEmpresa[e] || 0)}</strong></td>)}
-                    <td className="total-general"><strong>S/ {fmt(totalGeneral)}</strong></td>
+                    {empresasSeleccionadas.includes('CAPCIM') && <td className="total-columna"><strong>$ {fmt(totalCapcim)}</strong></td>}
+                    {empresasSeleccionadas.filter(e => EMPRESA_LOTES.includes(e)).map(e => <td key={e} className="total-columna"><strong>$ {fmt(totalPorEmpresa[e] || 0)}</strong></td>)}
+                    <td className="total-general"><strong>$ {fmt(totalGeneral)}</strong></td>
                   </tr>
                 </tfoot>
               </table>
@@ -403,24 +490,24 @@ export default function TabMarketing({ periodo, periodoLabel, onGuardado }) {
             <div className="mk-cpl-grid">
               <div className="section-card">
                 <div className="mk-seccion-header departamentos">
-                  <span>DEPARTAMENTOS</span>
+                  <span>DEPARTAMENTOS (resumen)</span>
                   <span className="mk-empresa-badge">CAPCIM</span>
                 </div>
                 <table className="resumen-tabla" style={{ marginTop: 10 }}>
-                  <thead><tr><th>Proyecto</th><th>Leads</th><th>Costo (S/)</th><th>CPL (S/)</th></tr></thead>
+                  <thead><tr><th>Proyecto</th><th>Leads</th><th>Costo ($)</th><th>CPL ($)</th></tr></thead>
                   <tbody>
                     {proyectosCapcim.length === 0
                       ? <tr><td colSpan="4" style={{ textAlign: 'center', color: 'var(--gris-texto)' }}>Sin leads de RIO HORIZONTE cargados</td></tr>
                       : proyectosCapcim.map(p => {
                           const d = cplPorProyecto[p];
-                          return <tr key={p}><td>{p}</td><td>{d?.leads || 0}</td><td>S/ {fmt(d?.costo)}</td><td><strong>S/ {fmt(d?.cpl)}</strong></td></tr>;
+                          return <tr key={p}><td>{p}</td><td>{d?.leads || 0}</td><td>$ {fmt(d?.costo)}</td><td><strong>$ {fmt(d?.cpl)}</strong></td></tr>;
                         })
                     }
                     <tr className="fila-total">
                       <td><strong>Total CAPCIM</strong></td>
                       <td><strong>{leadsCapcim}</strong></td>
-                      <td><strong>S/ {fmt(totalCapcim)}</strong></td>
-                      <td><strong>S/ {fmt(cplCapcim)}</strong></td>
+                      <td><strong>$ {fmt(totalCapcim)}</strong></td>
+                      <td><strong>$ {fmt(cplCapcim)}</strong></td>
                     </tr>
                   </tbody>
                 </table>
@@ -429,23 +516,23 @@ export default function TabMarketing({ periodo, periodoLabel, onGuardado }) {
               <div className="section-card">
                 <div className="mk-seccion-header lotes">
                   <span>LOTES</span>
-                  <span className="mk-empresa-badge">{empresaLotesActiva}</span>
+                  <span className="mk-empresa-badge">{empresasLotesActivas.join(' + ') || '—'}</span>
                 </div>
                 <table className="resumen-tabla" style={{ marginTop: 10 }}>
-                  <thead><tr><th>Proyecto</th><th>Leads</th><th>Costo (S/)</th><th>CPL (S/)</th></tr></thead>
+                  <thead><tr><th>Proyecto</th><th>Leads</th><th>Costo ($)</th><th>CPL ($)</th></tr></thead>
                   <tbody>
                     {proyectosLotesActivos.length === 0
                       ? <tr><td colSpan="4" style={{ textAlign: 'center', color: 'var(--gris-texto)' }}>Sin proyectos activos</td></tr>
                       : proyectosLotesActivos.map(p => {
                           const d = cplPorProyecto[p];
-                          return <tr key={p}><td>{p}</td><td>{d?.leads || 0}</td><td>S/ {fmt(d?.costo)}</td><td><strong>S/ {fmt(d?.cpl)}</strong></td></tr>;
+                          return <tr key={p}><td>{p}</td><td>{d?.leads || 0}</td><td>$ {fmt(d?.costo)}</td><td><strong>$ {fmt(d?.cpl)}</strong></td></tr>;
                         })
                     }
                     <tr className="fila-total">
                       <td><strong>Total {empresaLotesActiva}</strong></td>
                       <td><strong>{leadsLotesTotal}</strong></td>
-                      <td><strong>S/ {fmt(totalLotes)}</strong></td>
-                      <td><strong>S/ {fmt(cplLotes)}</strong></td>
+                      <td><strong>$ {fmt(totalLotes)}</strong></td>
+                      <td><strong>$ {fmt(cplLotes)}</strong></td>
                     </tr>
                   </tbody>
                 </table>
